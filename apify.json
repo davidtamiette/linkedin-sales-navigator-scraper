@@ -1,0 +1,44 @@
+{
+  "title": "LinkedIn Sales Navigator Scraper",
+  "description": "Extrai perfis do LinkedIn Sales Navigator com base em palavras-chave, localização e outras opções.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "sessionCookie": {
+      "title": "Cookie de sessão (li_at)",
+      "type": "string",
+      "description": "Seu cookie li_at do LinkedIn. Necessário para autenticação.",
+      "editor": "textfield",
+      "minLength": 10
+    },
+    "keywords": {
+      "title": "Palavras-chave",
+      "type": "string",
+      "description": "Palavras-chave para busca de perfis.",
+      "editor": "textfield"
+    },
+    "location": {
+      "title": "Localização",
+      "type": "string",
+      "description": "Localização geográfica para filtrar os resultados.",
+      "editor": "textfield"
+    },
+    "maxResults": {
+      "title": "Máximo de resultados",
+      "type": "integer",
+      "description": "Número máximo de perfis a extrair.",
+      "default": 20,
+      "minimum": 1,
+      "maximum": 1000,
+      "editor": "number"
+    },
+    "extractDetails": {
+      "title": "Extrair detalhes do perfil",
+      "type": "boolean",
+      "description": "Se verdadeiro, acessa cada perfil individualmente para obter mais detalhes.",
+      "default": false,
+      "editor": "checkbox"
+    }
+  },
+  "required": ["sessionCookie", "keywords", "location", "maxResults", "extractDetails"]
+}
