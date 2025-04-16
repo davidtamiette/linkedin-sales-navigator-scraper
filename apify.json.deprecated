@@ -1,1 +1,24 @@
-{{ ... }}
+{
+  "name": "linkedin-sales-navigator-scraper",
+  "version": "0.1.0",
+  "description": "Actor para raspar dados do Sales Navigator do LinkedIn.",
+  "main": "main.js",
+  "input": {
+    "title": "Parâmetros de entrada",
+    "type": "object",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "searchUrl": { "type": "string", "title": "URL de busca do Sales Navigator", "description": "Opcional." },
+        "keywords": { "type": "string", "title": "Palavras-chave", "description": "Opcional." },
+        "industry": { "type": "string", "title": "Setor/Indústria", "description": "Opcional." },
+        "title": { "type": "string", "title": "Cargo", "description": "Opcional." },
+        "location": { "type": "string", "title": "Localização", "description": "Opcional." },
+        "sessionCookie": { "type": "string", "title": "Cookie de sessão li_at do LinkedIn" },
+        "maxResults": { "type": "integer", "title": "Máximo de resultados", "default": 5 },
+        "extractDetails": { "type": "boolean", "title": "Extrair detalhes dos perfis?", "default": false }
+      },
+      "required": ["sessionCookie"]
+    }
+  }
+}

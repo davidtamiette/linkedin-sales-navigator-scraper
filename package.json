@@ -1,1 +1,13 @@
-{{ ... }}
+{
+  "name": "linkedin-sales-navigator-scraper",
+  "version": "0.1.0",
+  "description": "Actor para raspar dados do Sales Navigator do LinkedIn.",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "apify": "^3.0.0",
+    "puppeteer": "^19.0.0"
+  }
+}
