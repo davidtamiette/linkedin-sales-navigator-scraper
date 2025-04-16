@@ -35,7 +35,7 @@ async function extractProfileDetails(page, profileUrl) {
     let browser;
     try {
         const input = await Apify.getInput();
-        Apify.utils.log.info('Input recebido:', input);
+        Apify.log.info('Input recebido:', input);
 
         if (!input.sessionCookie) {
             throw new Error("sessionCookie não fornecido!");
@@ -57,18 +57,18 @@ async function extractProfileDetails(page, profileUrl) {
             httpOnly: true,
             secure: true
         });
-        Apify.utils.log.info('Cookie de sessão definido com sucesso.');
+        Apify.log.info('Cookie de sessão definido com sucesso.');
 
         // Monta a URL de busca
         const searchUrl = input.searchUrl || buildSalesNavigatorUrl(input);
-        Apify.utils.log.info(`Acessando URL de busca: ${searchUrl}`);
+        Apify.log.info(`Acessando URL de busca: ${searchUrl}`);
         await page.goto(searchUrl, { waitUntil: 'networkidle2' });
         await randomDelay();
 
         let results = [];
         let currentPage = 1;
         while (results.length < (input.maxResults || 20)) {
-            Apify.utils.log.info(`Extraindo resultados da página ${currentPage}...`);
+            Apify.log.info(`Extraindo resultados da página ${currentPage}...`);
             const profiles = await page.evaluate(() => {
                 return Array.from(document.querySelectorAll('li.artdeco-list__item')).map(item => {
                     const nameElem = item.querySelector('a[data-anonymize="person-name"]');
@@ -84,7 +84,7 @@ async function extractProfileDetails(page, profileUrl) {
                     };
                 }).filter(p => p.name && p.profileUrl);
             });
-            Apify.utils.log.info(`Encontrados ${profiles.length} perfis na página ${currentPage}.`);
+            Apify.log.info(`Encontrados ${profiles.length} perfis na página ${currentPage}.`);
             for (const profile of profiles) {
                 if (input.extractDetails) {
                     try {
@@ -99,7 +99,7 @@ async function extractProfileDetails(page, profileUrl) {
             }
             const nextButton = await page.$('button[aria-label="Avançar"]');
             if (nextButton && results.length < (input.maxResults || 20)) {
-                Apify.utils.log.info('Avançando para a próxima página de resultados...');
+                Apify.log.info('Avançando para a próxima página de resultados...');
                 await nextButton.click();
                 await randomDelay();
             } else {
@@ -107,16 +107,16 @@ async function extractProfileDetails(page, profileUrl) {
             }
             currentPage++;
         }
-        Apify.utils.log.info(`Total de perfis extraídos: ${results.length}`);
+        Apify.log.info(`Total de perfis extraídos: ${results.length}`);
         await Apify.pushData(results);
-        Apify.utils.log.info('Resultados enviados para o dataset do Apify com sucesso.');
+        Apify.log.info('Resultados enviados para o dataset do Apify com sucesso.');
     } catch (error) {
-        Apify.utils.log.error('Erro na execução do actor:', { error: error.message, stack: error.stack });
+        Apify.log.error('Erro na execução do actor:', { error: error.message, stack: error.stack });
         throw error;
     } finally {
         if (browser) {
             await browser.close();
-            Apify.utils.log.info('Browser fechado.');
+            Apify.log.info('Browser fechado.');
         }
     }
 })();
