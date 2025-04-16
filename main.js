@@ -31,79 +31,92 @@ async function extractProfileDetails(page, profileUrl) {
     return details;
 }
 
-Apify.main(async () => {
-    const input = await Apify.getInput();
+(async () => {
+    let browser;
+    try {
+        const input = await Apify.getInput();
+        Apify.utils.log.info('Input recebido:', input);
 
-    if (!input.sessionCookie) {
-        throw new Error("sessionCookie não fornecido!");
-    }
+        if (!input.sessionCookie) {
+            throw new Error("sessionCookie não fornecido!");
+        }
 
-    // Usa o Puppeteer do Apify para proxy e ambiente cloud
-    const browser = await Apify.launchPuppeteer({
-        useApifyProxy: input.proxyConfiguration?.useApifyProxy || false,
-        proxyUrls: input.proxyConfiguration?.proxyUrls || undefined,
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
-
-    // Define o cookie de sessão
-    await page.setCookie({
-        name: 'li_at',
-        value: input.sessionCookie,
-        domain: '.linkedin.com',
-        httpOnly: true,
-        secure: true
-    });
-
-    // Monta a URL de busca
-    const searchUrl = input.searchUrl || buildSalesNavigatorUrl(input);
-    await page.goto(searchUrl, { waitUntil: 'networkidle2' });
-    await randomDelay();
-
-    let results = [];
-    let currentPage = 1;
-    while (results.length < (input.maxResults || 20)) {
-        // Seletores atualizados para Sales Navigator (2024)
-        const profiles = await page.evaluate(() => {
-            // Cada resultado de pessoa
-            return Array.from(document.querySelectorAll('li.artdeco-list__item')).map(item => {
-                const nameElem = item.querySelector('a[data-anonymize="person-name"]');
-                const occupationElem = item.querySelector('dt[data-anonymize="headline"]');
-                const companyElem = item.querySelector('dd[data-anonymize="company-name"]');
-                const locationElem = item.querySelector('dd[data-anonymize="location"]');
-                return {
-                    name: nameElem?.innerText || '',
-                    profileUrl: nameElem?.href || '',
-                    occupation: occupationElem?.innerText || '',
-                    company: companyElem?.innerText || '',
-                    location: locationElem?.innerText || ''
-                };
-            }).filter(p => p.name && p.profileUrl);
+        browser = await Apify.launchPuppeteer({
+            useApifyProxy: input.proxyConfiguration?.useApifyProxy || false,
+            proxyUrls: input.proxyConfiguration?.proxyUrls || undefined,
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
-        for (const profile of profiles) {
-            if (input.extractDetails) {
-                try {
-                    const details = await extractProfileDetails(page, profile.profileUrl);
-                    Object.assign(profile, details);
-                } catch (e) {
-                    profile.error = 'Erro ao extrair detalhes';
+        const page = await browser.newPage();
+
+        // Define o cookie de sessão
+        await page.setCookie({
+            name: 'li_at',
+            value: input.sessionCookie,
+            domain: '.linkedin.com',
+            httpOnly: true,
+            secure: true
+        });
+        Apify.utils.log.info('Cookie de sessão definido com sucesso.');
+
+        // Monta a URL de busca
+        const searchUrl = input.searchUrl || buildSalesNavigatorUrl(input);
+        Apify.utils.log.info(`Acessando URL de busca: ${searchUrl}`);
+        await page.goto(searchUrl, { waitUntil: 'networkidle2' });
+        await randomDelay();
+
+        let results = [];
+        let currentPage = 1;
+        while (results.length < (input.maxResults || 20)) {
+            Apify.utils.log.info(`Extraindo resultados da página ${currentPage}...`);
+            const profiles = await page.evaluate(() => {
+                return Array.from(document.querySelectorAll('li.artdeco-list__item')).map(item => {
+                    const nameElem = item.querySelector('a[data-anonymize="person-name"]');
+                    const occupationElem = item.querySelector('dt[data-anonymize="headline"]');
+                    const companyElem = item.querySelector('dd[data-anonymize="company-name"]');
+                    const locationElem = item.querySelector('dd[data-anonymize="location"]');
+                    return {
+                        name: nameElem?.innerText || '',
+                        profileUrl: nameElem?.href || '',
+                        occupation: occupationElem?.innerText || '',
+                        company: companyElem?.innerText || '',
+                        location: locationElem?.innerText || ''
+                    };
+                }).filter(p => p.name && p.profileUrl);
+            });
+            Apify.utils.log.info(`Encontrados ${profiles.length} perfis na página ${currentPage}.`);
+            for (const profile of profiles) {
+                if (input.extractDetails) {
+                    try {
+                        const details = await extractProfileDetails(page, profile.profileUrl);
+                        Object.assign(profile, details);
+                    } catch (e) {
+                        profile.error = 'Erro ao extrair detalhes';
+                    }
                 }
+                results.push(profile);
+                if (results.length >= (input.maxResults || 20)) break;
             }
-            results.push(profile);
-            if (results.length >= (input.maxResults || 20)) break;
+            const nextButton = await page.$('button[aria-label="Avançar"]');
+            if (nextButton && results.length < (input.maxResults || 20)) {
+                Apify.utils.log.info('Avançando para a próxima página de resultados...');
+                await nextButton.click();
+                await randomDelay();
+            } else {
+                break;
+            }
+            currentPage++;
         }
-        // Paginação (botão "Avançar")
-        const nextButton = await page.$('button[aria-label="Avançar"]');
-        if (nextButton && results.length < (input.maxResults || 20)) {
-            await nextButton.click();
-            await randomDelay();
-        } else {
-            break;
+        Apify.utils.log.info(`Total de perfis extraídos: ${results.length}`);
+        await Apify.pushData(results);
+        Apify.utils.log.info('Resultados enviados para o dataset do Apify com sucesso.');
+    } catch (error) {
+        Apify.utils.log.error('Erro na execução do actor:', { error: error.message, stack: error.stack });
+        throw error;
+    } finally {
+        if (browser) {
+            await browser.close();
+            Apify.utils.log.info('Browser fechado.');
         }
-        currentPage++;
     }
-    // Salva resultados no dataset do Apify
-    await Apify.pushData(results);
-    await browser.close();
-});
+})();
