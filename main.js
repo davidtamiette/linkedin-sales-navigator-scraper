@@ -1,5 +1,5 @@
 const Apify = require('apify');
-const puppeteer = require('puppeteer');
+const { getInput, pushData, log, createProxyConfiguration, launchPuppeteer } = Apify;
 
 // Função utilitária para delay aleatório
 async function randomDelay(min = 1500, max = 3500) {
@@ -7,7 +7,7 @@ async function randomDelay(min = 1500, max = 3500) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Função para construir a URL do Sales Navigator
+// Monta a URL do Sales Navigator
 function buildSalesNavigatorUrl({ keywords, industry, title, location }) {
     let baseUrl = 'https://www.linkedin.com/sales/search/people?';
     const params = [];
@@ -18,32 +18,33 @@ function buildSalesNavigatorUrl({ keywords, industry, title, location }) {
     return baseUrl + params.join('&');
 }
 
-// Função para extrair detalhes de um perfil (opcional)
+// Extrai detalhes do perfil (opcional)
 async function extractProfileDetails(page, profileUrl) {
     await page.goto(profileUrl, { waitUntil: 'networkidle2' });
     await randomDelay();
-    const details = await page.evaluate(() => {
+    return page.evaluate(() => {
         const name = document.querySelector('.profile-topcard-person-entity__name')?.innerText || '';
         const headline = document.querySelector('.profile-topcard-person-entity__headline')?.innerText || '';
         const location = document.querySelector('.profile-topcard-person-entity__location')?.innerText || '';
         return { name, headline, location };
     });
-    return details;
 }
 
 (async () => {
     let browser;
     try {
-        const input = await Apify.getInput();
-        Apify.log.info('Input recebido:', input);
+        const input = await getInput();
+        log.info('Input recebido:', input);
 
-        if (!input.sessionCookie) {
-            throw new Error("sessionCookie não fornecido!");
-        }
+        if (!input.sessionCookie) throw new Error('sessionCookie não fornecido!');
 
-        browser = await Apify.launchPuppeteer({
-            useApifyProxy: input.proxyConfiguration?.useApifyProxy || false,
-            proxyUrls: input.proxyConfiguration?.proxyUrls || undefined,
+        // Configuração de proxy (compatível cloud)
+        const proxyConfig = input.proxyConfiguration
+            ? await createProxyConfiguration(input.proxyConfiguration)
+            : undefined;
+
+        browser = await launchPuppeteer({
+            proxyUrl: proxyConfig ? await proxyConfig.newUrl() : undefined,
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
@@ -57,18 +58,18 @@ async function extractProfileDetails(page, profileUrl) {
             httpOnly: true,
             secure: true
         });
-        Apify.log.info('Cookie de sessão definido com sucesso.');
+        log.info('Cookie de sessão definido.');
 
-        // Monta a URL de busca
+        // Monta e acessa a URL de busca
         const searchUrl = input.searchUrl || buildSalesNavigatorUrl(input);
-        Apify.log.info(`Acessando URL de busca: ${searchUrl}`);
+        log.info(`Acessando URL de busca: ${searchUrl}`);
         await page.goto(searchUrl, { waitUntil: 'networkidle2' });
         await randomDelay();
 
         let results = [];
         let currentPage = 1;
         while (results.length < (input.maxResults || 20)) {
-            Apify.log.info(`Extraindo resultados da página ${currentPage}...`);
+            log.info(`Extraindo resultados da página ${currentPage}...`);
             const profiles = await page.evaluate(() => {
                 return Array.from(document.querySelectorAll('li.artdeco-list__item')).map(item => {
                     const nameElem = item.querySelector('a[data-anonymize="person-name"]');
@@ -84,7 +85,7 @@ async function extractProfileDetails(page, profileUrl) {
                     };
                 }).filter(p => p.name && p.profileUrl);
             });
-            Apify.log.info(`Encontrados ${profiles.length} perfis na página ${currentPage}.`);
+            log.info(`Encontrados ${profiles.length} perfis na página ${currentPage}.`);
             for (const profile of profiles) {
                 if (input.extractDetails) {
                     try {
@@ -99,7 +100,7 @@ async function extractProfileDetails(page, profileUrl) {
             }
             const nextButton = await page.$('button[aria-label="Avançar"]');
             if (nextButton && results.length < (input.maxResults || 20)) {
-                Apify.log.info('Avançando para a próxima página de resultados...');
+                log.info('Avançando para a próxima página...');
                 await nextButton.click();
                 await randomDelay();
             } else {
@@ -107,16 +108,16 @@ async function extractProfileDetails(page, profileUrl) {
             }
             currentPage++;
         }
-        Apify.log.info(`Total de perfis extraídos: ${results.length}`);
-        await Apify.pushData(results);
-        Apify.log.info('Resultados enviados para o dataset do Apify com sucesso.');
+        log.info(`Total de perfis extraídos: ${results.length}`);
+        await pushData(results);
+        log.info('Resultados enviados para o dataset do Apify com sucesso.');
     } catch (error) {
-        Apify.log.error('Erro na execução do actor:', { error: error.message, stack: error.stack });
+        log.error('Erro na execução do actor:', { error: error.message, stack: error.stack });
         throw error;
     } finally {
         if (browser) {
             await browser.close();
-            Apify.log.info('Browser fechado.');
+            log.info('Browser fechado.');
         }
     }
 })();
