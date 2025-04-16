@@ -1,5 +1,4 @@
 const Apify = require('apify');
-const { getInput, pushData, log, createProxyConfiguration, launchPuppeteer } = Apify;
 
 // Função utilitária para delay aleatório
 async function randomDelay(min = 1500, max = 3500) {
@@ -33,17 +32,17 @@ async function extractProfileDetails(page, profileUrl) {
 (async () => {
     let browser;
     try {
-        const input = await getInput();
-        log.info('Input recebido:', input);
+        const input = await Apify.getInput();
+        Apify.log.info('Input recebido:', input);
 
         if (!input.sessionCookie) throw new Error('sessionCookie não fornecido!');
 
         // Configuração de proxy (compatível cloud)
         const proxyConfig = input.proxyConfiguration
-            ? await createProxyConfiguration(input.proxyConfiguration)
+            ? await Apify.createProxyConfiguration(input.proxyConfiguration)
             : undefined;
 
-        browser = await launchPuppeteer({
+        browser = await Apify.launchPuppeteer({
             proxyUrl: proxyConfig ? await proxyConfig.newUrl() : undefined,
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -58,18 +57,18 @@ async function extractProfileDetails(page, profileUrl) {
             httpOnly: true,
             secure: true
         });
-        log.info('Cookie de sessão definido.');
+        Apify.log.info('Cookie de sessão definido.');
 
         // Monta e acessa a URL de busca
         const searchUrl = input.searchUrl || buildSalesNavigatorUrl(input);
-        log.info(`Acessando URL de busca: ${searchUrl}`);
+        Apify.log.info(`Acessando URL de busca: ${searchUrl}`);
         await page.goto(searchUrl, { waitUntil: 'networkidle2' });
         await randomDelay();
 
         let results = [];
         let currentPage = 1;
         while (results.length < (input.maxResults || 20)) {
-            log.info(`Extraindo resultados da página ${currentPage}...`);
+            Apify.log.info(`Extraindo resultados da página ${currentPage}...`);
             const profiles = await page.evaluate(() => {
                 return Array.from(document.querySelectorAll('li.artdeco-list__item')).map(item => {
                     const nameElem = item.querySelector('a[data-anonymize="person-name"]');
@@ -85,7 +84,7 @@ async function extractProfileDetails(page, profileUrl) {
                     };
                 }).filter(p => p.name && p.profileUrl);
             });
-            log.info(`Encontrados ${profiles.length} perfis na página ${currentPage}.`);
+            Apify.log.info(`Encontrados ${profiles.length} perfis na página ${currentPage}.`);
             for (const profile of profiles) {
                 if (input.extractDetails) {
                     try {
@@ -100,7 +99,7 @@ async function extractProfileDetails(page, profileUrl) {
             }
             const nextButton = await page.$('button[aria-label="Avançar"]');
             if (nextButton && results.length < (input.maxResults || 20)) {
-                log.info('Avançando para a próxima página...');
+                Apify.log.info('Avançando para a próxima página...');
                 await nextButton.click();
                 await randomDelay();
             } else {
@@ -108,16 +107,16 @@ async function extractProfileDetails(page, profileUrl) {
             }
             currentPage++;
         }
-        log.info(`Total de perfis extraídos: ${results.length}`);
-        await pushData(results);
-        log.info('Resultados enviados para o dataset do Apify com sucesso.');
+        Apify.log.info(`Total de perfis extraídos: ${results.length}`);
+        await Apify.pushData(results);
+        Apify.log.info('Resultados enviados para o dataset do Apify com sucesso.');
     } catch (error) {
-        log.error('Erro na execução do actor:', { error: error.message, stack: error.stack });
+        Apify.log.error('Erro na execução do actor:', { error: error.message, stack: error.stack });
         throw error;
     } finally {
         if (browser) {
             await browser.close();
-            log.info('Browser fechado.');
+            Apify.log.info('Browser fechado.');
         }
     }
 })();
