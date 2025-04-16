@@ -32,7 +32,9 @@ async function extractProfileDetails(page, profileUrl) {
 (async () => {
     let browser;
     try {
-        const input = await Apify.getInput();
+        // Para máxima compatibilidade local e cloud, use getInput da forma abaixo
+        const { getInput } = require('apify');
+        const input = await getInput();
         Apify.log.info('Input recebido:', input);
 
         if (!input.sessionCookie) throw new Error('sessionCookie não fornecido!');
