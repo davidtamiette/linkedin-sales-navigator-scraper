@@ -1,13 +1,14 @@
 {
   "name": "linkedin-sales-navigator-scraper",
-  "version": "0.1.0",
-  "description": "Actor para raspar dados do Sales Navigator do LinkedIn.",
+  "version": "1.0.0",
+  "description": "Scraper de perfis do LinkedIn Sales Navigator para Apify.",
   "main": "main.js",
   "scripts": {
     "start": "node main.js"
   },
+  "author": "davidtamiette",
+  "license": "MIT",
   "dependencies": {
-    "apify": "^3.0.0",
-    "puppeteer": "^19.0.0"
+    "apify": "^3.4.0"
   }
 }
