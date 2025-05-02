@@ -5,14 +5,7 @@
  * Nota: É necessário ter o cookie at_lt válido do LinkedIn para autenticação.
  */
 
-const Apify = require('apify');
-// Versão mais simples e compatível do log
-const log = {
-    info: console.log,
-    error: console.error,
-    warning: console.warn,
-    debug: console.debug
-};
+const { Actor, log, PuppeteerCrawler } = require('apify');
 
 // Objeto para armazenar seletores CSS importantes
 const SELECTORS = {
@@ -38,9 +31,9 @@ const randomDelay = async (min = 2000, max = 5000) => {
     return delay;
 };
 
-Apify.main(async () => {
+Actor.main(async () => {
     // Recupera os inputs do usuário
-    const input = await Apify.getInput();
+    const input = await Actor.getInput();
     
     const {
         linkedinCookies,
@@ -67,10 +60,10 @@ Apify.main(async () => {
     }
     
     // Configuração do Proxy (opcional)
-    const proxyConfig = proxyConfiguration ? await Apify.createProxyConfiguration(proxyConfiguration) : undefined;
+    const proxyConfig = proxyConfiguration ? await Actor.createProxyConfiguration(proxyConfiguration) : undefined;
     
     // Inicia o crawler
-    const crawler = new Apify.PuppeteerCrawler({
+    const crawler = new PuppeteerCrawler({
         proxyConfiguration: proxyConfig,
         maxConcurrency: 1,
         launchPuppeteerOptions: {
@@ -108,7 +101,7 @@ Apify.main(async () => {
                 
                 // Extrai dados da primeira página de resultados
                 const leads = await extractLeadsFromPage(page);
-                await Apify.pushData(leads);
+                await Actor.pushData(leads);
                 
                 // Enfileira próximas páginas para scraping
                 await enqueueNextPages(page, crawler.requestQueue, maxPagesToScrape);
@@ -120,7 +113,7 @@ Apify.main(async () => {
                 
                 // Extrai dados da página atual
                 const leads = await extractLeadsFromPage(page);
-                await Apify.pushData(leads);
+                await Actor.pushData(leads);
                 
                 // Enfileira a próxima página se não atingiu o limite
                 if (request.userData.pageNumber < maxPagesToScrape) {
