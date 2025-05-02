@@ -1,5 +1,5 @@
-# Usa a imagem base do Node.js 18 (importante para compatibilidade com as dependências)
-FROM apify/actor-node:18
+# Usa a imagem base do Node.js 18 com Chrome instalado
+FROM apify/actor-node-puppeteer-chrome:18
 
 # Copia os arquivos de package.json para instalar dependências
 COPY package.json ./
