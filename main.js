@@ -75,6 +75,13 @@ Actor.main(async () => {
     // Configuração do Proxy (opcional)
     const proxyConfig = proxyConfiguration ? await Actor.createProxyConfiguration(proxyConfiguration) : undefined;
     
+    // Configurações globais para timeouts e limites de recursos
+    const NAVIGATION_TIMEOUT = 60000; // 60 segundos
+    const DEFAULT_TIMEOUT = 30000; // 30 segundos
+    
+    // Configure timeouts para navegação
+    Crawlee.Configuration.getGlobalConfig().set('requestHandlerTimeoutSecs', 180); // 3 minutos
+    
     // Inicia o crawler - com configuração de puppeteer corrigida para ambiente Apify
     const crawler = new PuppeteerCrawler({
         requestQueue,
@@ -97,9 +104,14 @@ Actor.main(async () => {
         preNavigationHooks: [
             // Hooks para evitar detecção
             async ({ page }) => {
-                // Tenta evitar detecção
+                log.info('Aplicando técnicas avançadas anti-detecção...');
+                
+                // Configurar user agent mais realista
+                await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36');
+                
+                // Tenta evitar detecção - script mais abrangente
                 await page.evaluateOnNewDocument(() => {
-                    // Overwrite the 'plugins' property to use a custom getter
+                    // Overwrite the 'plugins' property to use a custom getter with plugins reais
                     Object.defineProperty(navigator, 'plugins', {
                         get: () => Array(3).fill().map((_, i) => ({
                             name: `Default Plugin ${i}`,
@@ -115,9 +127,55 @@ Actor.main(async () => {
                         get: () => ['pt-BR', 'pt', 'en-US', 'en'],
                     });
                     
-                    // Overwrite other navigator properties to make detection harder
+                    // Ocultar webdriver
                     const newProto = navigator.__proto__;
                     delete newProto.webdriver;
+                    
+                    // Adiciona funções de hardware fingerprinting realistas
+                    const originalQuery = Element.prototype.querySelectorAll;
+                    Element.prototype.querySelectorAll = function(selector) {
+                        if (selector === ':target') {
+                            return [];
+                        }
+                        return originalQuery.apply(this, arguments);
+                    };
+                    
+                    // Simular valores de performance aleatórios 
+                    // para evitar detecção de timing attacks
+                    const randomPerformance = {};
+                    Performance.prototype.now = () => {
+                        return Date.now() + Math.random() * 10;
+                    };
+                    
+                    // Fingir que é um navegador real
+                    window.chrome = {
+                        runtime: {},
+                        loadTimes: function() {},
+                        csi: function() {},
+                        app: {},
+                    };
+                    
+                    // Modificar a detecção de canvas fingerprinting
+                    const getImageData = CanvasRenderingContext2D.prototype.getImageData;
+                    CanvasRenderingContext2D.prototype.getImageData = function() {
+                        const imageData = getImageData.apply(this, arguments);
+                        const pixels = imageData.data;
+                        // Modifica levemente os pixels para evitar fingerprinting
+                        for (let i = 0; i < pixels.length; i += 4) {
+                            pixels[i] = pixels[i] + (Math.random() < 0.05 ? 1 : 0);
+                        }
+                        return imageData;
+                    };
+                });
+                
+                // Adicionar comportamentos aleatórios para parecer mais humano
+                await page.setViewport({
+                    width: 1920 + Math.floor(Math.random() * 100),
+                    height: 1080 + Math.floor(Math.random() * 100),
+                    deviceScaleFactor: 1,
+                    hasTouch: false,
+                    isLandscape: true,
+                    isMobile: false,
                 });
             }
         ],
@@ -130,13 +188,51 @@ Actor.main(async () => {
                 await authenticateWithCookies(page, linkedinCookies, cookieString);
                 
                 // Verificando se a autenticação foi bem-sucedida
-                await page.goto('https://www.linkedin.com/feed/', { waitUntil: 'networkidle2' });
-                const isLoggedIn = await page.evaluate(() => {
-                    return document.querySelector('.feed-identity-module__actor-meta') !== null;
-                });
-                
-                if (!isLoggedIn) {
-                    throw new Error('Falha na autenticação com os cookies fornecidos. Verifique se os cookies são válidos.');
+                log.info('Navegando para LinkedIn feed com timeout estendido...');
+                try {
+                    // Aumente o timeout para 60 segundos
+                    await page.goto('https://www.linkedin.com/feed/', { 
+                        waitUntil: 'networkidle2',
+                        timeout: 60000 // 60 segundos
+                    });
+                    
+                    // Aguarda até 10 segundos após a navegação para elementos carregarem
+                    await page.waitForTimeout(3000);
+                    
+                    // Verifica se está na página do feed ou na página de login
+                    const currentUrl = page.url();
+                    log.info(`URL atual após navegação: ${currentUrl}`);
+                    
+                    if (currentUrl.includes('checkpoint') || currentUrl.includes('authwall')) {
+                        throw new Error('LinkedIn solicitou verificação adicional. Verifique se os cookies são válidos e recentes.');
+                    }
+                    
+                    // Verifica se o seletor do feed está presente ou se há outro seletor indicando login bem-sucedido
+                    const isLoggedIn = await page.evaluate(() => {
+                        // Verifica múltiplos seletores que podem indicar login bem-sucedido
+                        return Boolean(
+                            document.querySelector('.feed-identity-module__actor-meta') || 
+                            document.querySelector('.feed-identity-module') ||
+                            document.querySelector('.global-nav__me')
+                        );
+                    });
+                    
+                    if (!isLoggedIn) {
+                        log.warning('Seletores de autenticação não encontrados. Verificando a página...');
+                        await page.screenshot({ path: 'auth-check.png', fullPage: true });
+                        throw new Error('Falha na autenticação com os cookies fornecidos. Verifique se os cookies são válidos.');
+                    }
+                    
+                    log.info('Seletores de navegação encontrados, autenticação confirmada.');
+                    
+                } catch (error) {
+                    if (error.name === 'TimeoutError') {
+                        log.error('Timeout durante a navegação para a página do feed.');
+                        // Tente capturar uma screenshot para diagnóstico
+                        await page.screenshot({ path: 'timeout-error.png', fullPage: true });
+                        throw new Error('Timeout durante a navegação para a página do feed. O LinkedIn pode estar detectando o scraper.');
+                    }
+                    throw error;
                 }
                 
                 log.info('Autenticação bem-sucedida!');
