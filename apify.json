@@ -1,0 +1,13 @@
+{
+    "name": "linkedin-sales-navigator-scraper",
+    "version": "1.0.0",
+    "buildTag": "latest",
+    "env": {
+        "APIFY_LOG_LEVEL": "INFO",
+        "APIFY_MEMORY_MBYTES": "4096",
+        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "1"
+    },
+    "scripts": {
+        "start": "node main.js"
+    }
+}
