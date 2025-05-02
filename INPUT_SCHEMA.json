@@ -1,0 +1,69 @@
+{
+    "title": "LinkedIn Sales Navigator Scraper",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "linkedinCookies": {
+            "title": "LinkedIn Cookies",
+            "type": "array",
+            "description": "Array de objetos de cookies do LinkedIn, incluindo o cookie at_lt ou li_at",
+            "editor": "json",
+            "sectionCaption": "Autenticação LinkedIn (forneça UM dos métodos abaixo)"
+        },
+        "cookieString": {
+            "title": "String de Cookies",
+            "type": "string",
+            "description": "String de cookies copiada do navegador, incluindo o cookie at_lt ou li_at (formato: 'nome=valor; nome2=valor2')",
+            "editor": "textarea",
+            "isSecret": true
+        },
+        "searchType": {
+            "title": "Tipo de Busca",
+            "type": "string",
+            "description": "Método de busca: por link direto ou por palavras-chave",
+            "editor": "select",
+            "enum": ["link", "keywords"],
+            "enumTitles": ["Link do Sales Navigator", "Palavras-chave"],
+            "sectionCaption": "Parâmetros de Busca"
+        },
+        "searchUrl": {
+            "title": "URL de Busca",
+            "type": "string",
+            "description": "URL completa do LinkedIn Sales Navigator com os filtros desejados (necessário quando searchType = 'link')",
+            "editor": "textfield"
+        },
+        "searchKeywords": {
+            "title": "Palavras-chave",
+            "type": "string",
+            "description": "Palavras-chave para busca (necessário quando searchType = 'keywords')",
+            "editor": "textfield"
+        },
+        "maxLeads": {
+            "title": "Máximo de Leads",
+            "type": "integer",
+            "description": "Número máximo de leads para extrair",
+            "editor": "number",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000,
+            "sectionCaption": "Limites e Configurações"
+        },
+        "maxPagesToScrape": {
+            "title": "Máximo de Páginas",
+            "type": "integer",
+            "description": "Número máximo de páginas para extrair",
+            "editor": "number",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 100
+        },
+        "proxyConfiguration": {
+            "title": "Configuração de Proxy",
+            "type": "object",
+            "description": "Configuração de proxy para evitar bloqueios",
+            "prefill": { "useApifyProxy": true },
+            "editor": "proxy"
+        }
+    },
+    "required": ["searchType"]
+}
