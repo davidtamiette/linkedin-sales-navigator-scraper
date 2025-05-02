@@ -6,14 +6,14 @@
         "linkedinCookies": {
             "title": "LinkedIn Cookies",
             "type": "array",
-            "description": "Array de objetos de cookies do LinkedIn, incluindo o cookie at_lt ou li_at",
+            "description": "Array de objetos de cookies do LinkedIn, incluindo o cookie li_at",
             "editor": "json",
             "sectionCaption": "Autenticação LinkedIn (forneça UM dos métodos abaixo)"
         },
         "cookieString": {
             "title": "String de Cookies",
             "type": "string",
-            "description": "String de cookies copiada do navegador, incluindo o cookie at_lt ou li_at (formato: 'nome=valor; nome2=valor2')",
+            "description": "String de cookies copiada do navegador, incluindo o cookie li_at (formato: 'nome=valor; nome2=valor2')",
             "editor": "textarea",
             "isSecret": true
         },

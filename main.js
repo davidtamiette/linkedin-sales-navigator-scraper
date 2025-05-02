@@ -266,14 +266,16 @@ function parseCookieString(cookieString) {
                     log.info(`  -> Found authentication cookie: ${cookieName}`);
                 }
 
-                cookies.push({
+                const cookie = {
                     name: cookieName,
                     value: cookieValue,
-                    domain: '.linkedin.com', // Assumindo domínio padrão
+                    domain: '.linkedin.com',
                     path: '/',
-                    httpOnly: cookieName === 'li_at', // httpOnly para cookies de auth
-                    secure: true // Geralmente seguro para cookies do LinkedIn
-                });
+                    httpOnly: cookieName === 'li_at',
+                    secure: true
+                };
+                delete cookie.sameSite;
+                cookies.push(cookie);
             }
         }
     }
