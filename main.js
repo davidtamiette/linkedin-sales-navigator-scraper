@@ -75,14 +75,13 @@ Actor.main(async () => {
     // Configuração do Proxy (opcional)
     const proxyConfig = proxyConfiguration ? await Actor.createProxyConfiguration(proxyConfiguration) : undefined;
     
-    // Inicia o crawler - com configuração de puppeteer corrigida
+    // Inicia o crawler - com configuração de puppeteer corrigida para ambiente Apify
     const crawler = new PuppeteerCrawler({
         requestQueue,
         proxyConfiguration: proxyConfig,
         maxConcurrency: 1,
         launchContext: {
-            // Removida a opção 'stealth' que não é mais suportada dessa forma
-            useChrome: true,
+            // Configurações simplificadas que funcionam na imagem Docker da Apify
             launchOptions: {
                 headless: true,
                 args: [
@@ -91,12 +90,13 @@ Actor.main(async () => {
                     '--disable-accelerated-2d-canvas',
                     '--disable-gpu',
                     '--window-size=1920,1080',
+                    '--no-sandbox',
                 ]
             }
         },
         preNavigationHooks: [
-            // Implementa funcionalidade similar ao stealth aqui
-            async ({ page, browserController }) => {
+            // Hooks para evitar detecção
+            async ({ page }) => {
                 // Tenta evitar detecção
                 await page.evaluateOnNewDocument(() => {
                     // Overwrite the 'plugins' property to use a custom getter
@@ -114,10 +114,14 @@ Actor.main(async () => {
                     Object.defineProperty(navigator, 'languages', {
                         get: () => ['pt-BR', 'pt', 'en-US', 'en'],
                     });
+                    
+                    // Overwrite other navigator properties to make detection harder
+                    const newProto = navigator.__proto__;
+                    delete newProto.webdriver;
                 });
             }
         ],
-        async requestHandler({ page, request, log }) {
+        requestHandler: async ({ page, request }) => {
             log.info(`Processando ${request.url}`);
             
             // Se é a primeira página (autenticação)
@@ -168,7 +172,7 @@ Actor.main(async () => {
                 }
             }
         },
-        async failedRequestHandler({ request, log }) {
+        failedRequestHandler: async ({ request }) => {
             log.error(`Falha ao processar ${request.url}`);
         },
     });
@@ -181,6 +185,7 @@ Actor.main(async () => {
         },
     });
     
+    log.info('Iniciando o crawler...');
     await crawler.run();
     log.info('Crawler finalizado.');
 });
