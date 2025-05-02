@@ -5,8 +5,12 @@
  * Nota: É necessário ter o cookie at_lt válido do LinkedIn para autenticação.
  */
 
-const { Actor, log } = require('apify');
-const { PuppeteerCrawler } = require('crawlee');
+// Imports atualizados para Apify SDK v3
+const Apify = require('apify');
+const { Actor } = Apify;
+const Crawlee = require('crawlee');
+const { PuppeteerCrawler, RequestQueue } = Crawlee;
+const { log } = Crawlee.utils;
 
 // Objeto para armazenar seletores CSS importantes
 const SELECTORS = {
@@ -32,7 +36,12 @@ const randomDelay = async (min = 2000, max = 5000) => {
     return delay;
 };
 
+// Função principal usando Actor.main()
 Actor.main(async () => {
+    // Mostra as versões para debug
+    console.log('Apify version:', require('apify/package.json').version);
+    console.log('Crawlee version:', require('crawlee/package.json').version);
+    
     // Recupera os inputs do usuário
     const input = await Actor.getInput();
     
@@ -60,18 +69,22 @@ Actor.main(async () => {
         throw new Error('Search keywords are required when searchType is "keywords"');
     }
     
+    // Cria uma fila de requisições
+    const requestQueue = await RequestQueue.open();
+    
     // Configuração do Proxy (opcional)
     const proxyConfig = proxyConfiguration ? await Actor.createProxyConfiguration(proxyConfiguration) : undefined;
     
     // Inicia o crawler
     const crawler = new PuppeteerCrawler({
+        requestQueue,
         proxyConfiguration: proxyConfig,
         maxConcurrency: 1,
         launchContext: {
             stealth: true,
             useChrome: true,
         },
-        async requestHandler({ page, request }) {
+        async requestHandler({ page, request, log }) {
             log.info(`Processando ${request.url}`);
             
             // Se é a primeira página (autenticação)
@@ -105,7 +118,7 @@ Actor.main(async () => {
                 await Actor.pushData(leads);
                 
                 // Enfileira próximas páginas para scraping
-                await enqueueNextPages(page, crawler.requestQueue, maxPagesToScrape);
+                await enqueueNextPages(page, requestQueue, maxPagesToScrape);
             } 
             // Se é uma página de resultados subsequente
             else if (request.userData.label === 'SEARCH_RESULTS') {
@@ -118,22 +131,22 @@ Actor.main(async () => {
                 
                 // Enfileira a próxima página se não atingiu o limite
                 if (request.userData.pageNumber < maxPagesToScrape) {
-                    await enqueueNextPages(page, crawler.requestQueue, maxPagesToScrape, request.userData.pageNumber);
+                    await enqueueNextPages(page, requestQueue, maxPagesToScrape, request.userData.pageNumber);
                 }
             }
         },
-        async failedRequestHandler({ request }) {
+        async failedRequestHandler({ request, log }) {
             log.error(`Falha ao processar ${request.url}`);
         },
     });
     
     // Enfileira a página inicial para autenticação
-    await crawler.addRequests([{
+    await requestQueue.addRequest({
         url: 'https://www.linkedin.com',
         userData: {
             label: 'AUTHENTICATE',
         },
-    }]);
+    });
     
     await crawler.run();
     log.info('Crawler finalizado.');
