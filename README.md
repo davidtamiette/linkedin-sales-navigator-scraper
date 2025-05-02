@@ -1,4 +1,4 @@
-# LinkedIn Sales Navigator Scraper
+# LinkedIn Sales Navigator Scraper [PRIVADO]
 
 Este ator para Apify permite extrair perfis de leads do LinkedIn Sales Navigator usando links específicos ou palavras-chave de busca.
 
