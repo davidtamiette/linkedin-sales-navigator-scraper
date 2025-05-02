@@ -229,11 +229,11 @@ async function authenticateWithCookies(page, linkedinCookies, cookieString) {
             cookies = parseCookieString(cookieString);
         }
         
-        // Verifica se o cookie at_lt está presente
-        const hasAuthCookie = cookies.some(cookie => cookie.name === 'at_lt' || cookie.name === 'li_at');
+        // Verifica se o cookie li_at está presente
+        const hasAuthCookie = cookies.some(cookie => cookie.name === 'li_at');
         
         if (!hasAuthCookie) {
-            log.warning('Cookie de autenticação (at_lt ou li_at) não encontrado. A autenticação pode falhar.');
+            log.warning('Cookie de autenticação (li_at) não encontrado. A autenticação pode falhar.');
         }
         
         // Define os cookies no navegador
@@ -271,7 +271,7 @@ function parseCookieString(cookieString) {
                     value: cookieValue,
                     domain: '.linkedin.com', // Assumindo domínio padrão
                     path: '/',
-                    httpOnly: cookieName === 'at_lt' || cookieName === 'li_at', // httpOnly para cookies de auth
+                    httpOnly: cookieName === 'li_at', // httpOnly para cookies de auth
                     secure: true // Geralmente seguro para cookies do LinkedIn
                 });
             }
