@@ -6,7 +6,8 @@
  */
 
 const Apify = require('apify');
-const { log } = Apify.utils;
+// Forma correta de acessar o log na versão mais recente do Apify
+const log = Apify.utils.log.getLogger('actor');
 
 // Objeto para armazenar seletores CSS importantes
 const SELECTORS = {
