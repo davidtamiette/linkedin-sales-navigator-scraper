@@ -5,7 +5,8 @@
  * Nota: É necessário ter o cookie at_lt válido do LinkedIn para autenticação.
  */
 
-const { Actor, log, PuppeteerCrawler } = require('apify');
+const { Actor, log } = require('apify');
+const { PuppeteerCrawler } = require('crawlee');
 
 // Objeto para armazenar seletores CSS importantes
 const SELECTORS = {
@@ -66,11 +67,11 @@ Actor.main(async () => {
     const crawler = new PuppeteerCrawler({
         proxyConfiguration: proxyConfig,
         maxConcurrency: 1,
-        launchPuppeteerOptions: {
+        launchContext: {
             stealth: true,
             useChrome: true,
         },
-        handlePageFunction: async ({ page, request }) => {
+        async requestHandler({ page, request }) {
             log.info(`Processando ${request.url}`);
             
             // Se é a primeira página (autenticação)
@@ -121,18 +122,18 @@ Actor.main(async () => {
                 }
             }
         },
-        handleFailedRequestFunction: async ({ request }) => {
+        async failedRequestHandler({ request }) {
             log.error(`Falha ao processar ${request.url}`);
         },
     });
     
     // Enfileira a página inicial para autenticação
-    await crawler.requestQueue.addRequest({
+    await crawler.addRequests([{
         url: 'https://www.linkedin.com',
         userData: {
             label: 'AUTHENTICATE',
         },
-    });
+    }]);
     
     await crawler.run();
     log.info('Crawler finalizado.');
