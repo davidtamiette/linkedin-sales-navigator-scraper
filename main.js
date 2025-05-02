@@ -223,7 +223,13 @@ async function authenticateWithCookies(page, linkedinCookies, cookieString) {
         
         if (linkedinCookies && Array.isArray(linkedinCookies)) {
             // Se fornecido como um array de objetos de cookie
-            cookies = linkedinCookies;
+            cookies = linkedinCookies.map(cookie => {
+                // Cria uma cópia do cookie para não modificar o original
+                const cleanCookie = { ...cookie };
+                // Remove o atributo sameSite se existir
+                delete cleanCookie.sameSite;
+                return cleanCookie;
+            });
         } else if (cookieString) {
             // Se fornecido como uma string de cookies
             cookies = parseCookieString(cookieString);
