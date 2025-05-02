@@ -1,12 +1,12 @@
-# Usa a imagem base do Node.js
-FROM apify/actor-node:16
+# Usa a imagem base do Node.js 18 (importante para compatibilidade com as dependências)
+FROM apify/actor-node:18
 
 # Copia os arquivos de package.json para instalar dependências
 COPY package.json ./
 
 # Instala as dependências do projeto
 RUN npm --quiet set progress=false \
- && npm install --only=prod --no-optional \
+ && npm install \
  && echo "Dependências instaladas com sucesso!"
 
 # Copia o código-fonte do ator
