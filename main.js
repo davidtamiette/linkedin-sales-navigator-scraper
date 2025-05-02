@@ -164,11 +164,34 @@ Actor.main(async () => {
                 
                 // Extrai dados da página atual
                 const leads = await extractLeadsFromPage(page);
-                await Actor.pushData(leads);
-                
-                // Enfileira a próxima página se não atingiu o limite
+                if (leads.length > 0) { // Só salva se extraiu algo
+                    await Actor.pushData(leads);
+                } else {
+                    log.warning(`Nenhum lead extraído da página ${request.userData.pageNumber}. Verifique os seletores ou a estrutura da página.`);
+                }
+
+                // Verifica se deve prosseguir para a próxima página
                 if (request.userData.pageNumber < maxPagesToScrape) {
-                    await enqueueNextPages(page, requestQueue, maxPagesToScrape, request.userData.pageNumber);
+                    // Verifica se existe botão de próxima página ANTES de esperar
+                    const hasNextPage = await page.evaluate((selector) => {
+                        const nextButton = document.querySelector(selector);
+                        return nextButton && !nextButton.disabled;
+                    }, SELECTORS.SALES_NAVIGATOR.PAGINATION_NEXT);
+
+                    if (hasNextPage) {
+                        // Adiciona espera aleatória entre 25 e 30 segundos
+                        const waitTime = Math.floor(Math.random() * (30000 - 25000 + 1)) + 25000; // 25-30 segundos
+                        log.info(`Aguardando ${waitTime / 1000} segundos antes de prosseguir para a página ${request.userData.pageNumber + 1}...`);
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
+                        log.info(`Tempo de espera concluído. Tentando enfileirar página ${request.userData.pageNumber + 1}...`);
+
+                        // Enfileira a próxima página
+                        await enqueueNextPages(page, requestQueue, maxPagesToScrape, request.userData.pageNumber);
+                    } else {
+                        log.info(`Não há botão 'próxima página' ativo na página ${request.userData.pageNumber}. Finalizando paginação.`);
+                    }
+                } else {
+                    log.info(`Limite máximo de páginas (${maxPagesToScrape}) atingido.`);
                 }
             }
         },
@@ -228,23 +251,33 @@ async function authenticateWithCookies(page, linkedinCookies, cookieString) {
 function parseCookieString(cookieString) {
     const cookies = [];
     const cookiePairs = cookieString.split(';');
-    
+    log.info(`Parsing cookie string: "${cookieString.substring(0, 50)}..."`); // Log inicial
+
     for (const pair of cookiePairs) {
         if (pair.trim()) {
             const [name, value] = pair.trim().split('=');
             if (name && value) {
+                const cookieName = name.trim();
+                const cookieValue = value.trim();
+                log.debug(`  Found cookie pair: ${cookieName}=${cookieValue.substring(0, 10)}...`); // Log para cada par
+
+                // Destaca se é um cookie de autenticação
+                if (cookieName === 'at_lt' || cookieName === 'li_at') {
+                    log.info(`  -> Found authentication cookie: ${cookieName}`);
+                }
+
                 cookies.push({
-                    name: name.trim(),
-                    value: value.trim(),
-                    domain: '.linkedin.com',
+                    name: cookieName,
+                    value: cookieValue,
+                    domain: '.linkedin.com', // Assumindo domínio padrão
                     path: '/',
-                    httpOnly: name.trim() === 'at_lt' || name.trim() === 'li_at',
-                    secure: true
+                    httpOnly: cookieName === 'at_lt' || cookieName === 'li_at', // httpOnly para cookies de auth
+                    secure: true // Geralmente seguro para cookies do LinkedIn
                 });
             }
         }
     }
-    
+    log.info(`Parsed ${cookies.length} cookies from string.`);
     return cookies;
 }
 
