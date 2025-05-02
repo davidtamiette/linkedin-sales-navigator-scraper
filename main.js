@@ -75,15 +75,48 @@ Actor.main(async () => {
     // Configuração do Proxy (opcional)
     const proxyConfig = proxyConfiguration ? await Actor.createProxyConfiguration(proxyConfiguration) : undefined;
     
-    // Inicia o crawler
+    // Inicia o crawler - com configuração de puppeteer corrigida
     const crawler = new PuppeteerCrawler({
         requestQueue,
         proxyConfiguration: proxyConfig,
         maxConcurrency: 1,
         launchContext: {
-            stealth: true,
+            // Removida a opção 'stealth' que não é mais suportada dessa forma
             useChrome: true,
+            launchOptions: {
+                headless: true,
+                args: [
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--disable-gpu',
+                    '--window-size=1920,1080',
+                ]
+            }
         },
+        preNavigationHooks: [
+            // Implementa funcionalidade similar ao stealth aqui
+            async ({ page, browserController }) => {
+                // Tenta evitar detecção
+                await page.evaluateOnNewDocument(() => {
+                    // Overwrite the 'plugins' property to use a custom getter
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => Array(3).fill().map((_, i) => ({
+                            name: `Default Plugin ${i}`,
+                            description: 'Gecko default plugin',
+                            filename: 'internal-default-plugin',
+                            length: 1,
+                            item: () => null
+                        })),
+                    });
+
+                    // Overwrite the 'languages' property
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['pt-BR', 'pt', 'en-US', 'en'],
+                    });
+                });
+            }
+        ],
         async requestHandler({ page, request, log }) {
             log.info(`Processando ${request.url}`);
             
