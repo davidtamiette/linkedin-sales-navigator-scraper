@@ -44,7 +44,23 @@ Para cada lead, o ator extrai:
 | `maxPagesToScrape` | Número máximo de páginas para extrair (máx. 100) |
 | `proxyConfiguration` | Configurações de proxy (recomendado usar os proxies da Apify) |
 
-### 2. Obtendo os cookies do LinkedIn
+### 2. Requisitos de sistema no Apify
+
+Este ator realiza tarefas complexas que requerem recursos adequados. Configure sua execução com:
+
+- **Memória**: 4096 MB (4 GB) ou mais para evitar problemas de memória insuficiente
+- **Timeout**: 15 minutos ou mais, dependendo de quantas páginas deseja extrair
+- **Tipo de instância**: Recomendamos pelo menos 2 vCPU para melhor desempenho
+
+Para configurar estes parâmetros:
+1. Vá para "Input" no painel do Apify
+2. Clique em "Run options"
+3. Ajuste "Memory" para pelo menos 4 GB
+4. Ajuste "Timeout" para pelo menos 900 segundos (15 minutos)
+
+![Configuração recomendada](https://i.imgur.com/1LjW1xV.png)
+
+### 3. Obtendo os cookies do LinkedIn
 
 Existem duas formas de fornecer os cookies de autenticação:
 
@@ -74,11 +90,11 @@ Para obter os cookies:
 4. Procure pelo cookie `at_lt` ou `li_at`
 5. Copie o valor ou a string completa de cookies
 
-### 3. Execute o ator
+### 4. Execute o ator
 
 Após configurar os parâmetros, inicie o ator através da interface da Apify ou programaticamente via API.
 
-### 4. Obtenha os resultados
+### 5. Obtenha os resultados
 
 Os dados extraídos estarão disponíveis em:
 - **Dataset**: formato de tabela estruturada (CSV, JSON, Excel)
@@ -160,19 +176,38 @@ Use este método para buscar perfis usando termos específicos:
    - Os proxies da Apify são recomendados por serem otimizados para este tipo de tarefa
    - Considere usar proxies residenciais para maior probabilidade de sucesso
 
-## Solução de problemas
+## Problemas comuns
 
-- **Autenticação falha**: 
+### Uso de memória e timeouts
+
+Se encontrar erros relacionados a uso excessivo de memória ou timeout:
+
+- **Problema**: "Memory is critically overloaded" ou "The Actor run has reached the timeout"
+- **Solução**: 
+  1. Aumente a memória disponível nas opções de execução (mínimo 4 GB recomendado)
+  2. Aumente o timeout (mínimo 15 minutos recomendado)
+  3. Reduza o número de páginas a extrair (`maxPagesToScrape`)
+
+### Autenticação falha 
+
+- **Problema**: "Falha na autenticação com os cookies fornecidos"
+- **Solução**: 
   - Verifique se os cookies estão válidos e atualizados
   - Confirme se o cookie `at_lt` ou `li_at` está presente
   - Tente obter novos cookies fazendo login novamente no LinkedIn
 
-- **Resultados vazios**:
+### Resultados vazios
+
+- **Problema**: Nenhum lead retornado
+- **Solução**:
   - Verifique a URL ou palavras-chave no navegador normal
   - Certifique-se de que sua conta tem acesso ao Sales Navigator
   - Confirme se os cookies foram extraídos corretamente
 
-- **Bloqueio pelo LinkedIn**:
+### Bloqueio pelo LinkedIn
+
+- **Problema**: Detecção e bloqueio pelo LinkedIn
+- **Solução**:
   - Aumente os valores de atraso mínimos e máximos no código
   - Utilize proxies de melhor qualidade
   - Reduza a frequência de execução

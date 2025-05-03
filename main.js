@@ -82,13 +82,13 @@ Actor.main(async () => {
     // Configure timeouts para navegação
     Crawlee.Configuration.getGlobalConfig().set('requestHandlerTimeoutSecs', 180); // 3 minutos
     
-    // Inicia o crawler - com configuração de puppeteer corrigida para ambiente Apify
+    // Inicia o crawler - com configuração otimizada para usar menos memória
     const crawler = new PuppeteerCrawler({
         requestQueue,
         proxyConfiguration: proxyConfig,
         maxConcurrency: 1,
         launchContext: {
-            // Configurações simplificadas que funcionam na imagem Docker da Apify
+            // Configurações otimizadas para usar menos memória e iniciar mais rápido
             launchOptions: {
                 headless: true,
                 args: [
@@ -96,12 +96,48 @@ Actor.main(async () => {
                     '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas',
                     '--disable-gpu',
-                    '--window-size=1920,1080',
+                    '--window-size=1280,720', // Reduzido para economizar memória
                     '--no-sandbox',
+                    '--disable-extensions',
+                    '--disable-component-extensions-with-background-pages',
+                    '--disable-default-apps',
+                    '--mute-audio',
+                    '--no-zygote', // Evita processos extras
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-background-timer-throttling',
+                    '--disable-renderer-backgrounding',
+                    '--disable-background-networking',
+                    '--disable-breakpad',
+                    '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+                    '--disable-ipc-flooding-protection',
+                    '--memory-pressure-off',
+                    '--js-flags=--max-old-space-size=256' // Limita o uso de memória JS
                 ]
             }
         },
+        // Desativa carregamento de imagens e folhas de estilo para economizar memória e acelerar
         preNavigationHooks: [
+            // Otimização de recursos: bloqueio de recursos que consomem memória
+            async ({ page, request }) => {
+                log.info(`Otimizando renderização para: ${request.url}`);
+                
+                // Bloquear recursos desnecessários (imagens, fontes, mídia)
+                await page.setRequestInterception(true);
+                
+                page.on('request', (req) => {
+                    const resourceType = req.resourceType();
+                    if (resourceType === 'image' || resourceType === 'font' || resourceType === 'media') {
+                        req.abort();
+                    } else {
+                        req.continue();
+                    }
+                });
+                
+                // Configurar timeout para cada requisição individual
+                page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT);
+                page.setDefaultTimeout(DEFAULT_TIMEOUT);
+            },
+            
             // Hooks para evitar detecção
             async ({ page }) => {
                 log.info('Aplicando técnicas avançadas anti-detecção...');
